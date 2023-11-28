@@ -1,6 +1,12 @@
 package com.example.upstats
 
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Bundle
+import android.os.IBinder
+import android.os.SystemClock
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,7 +34,22 @@ class MainActivity : ComponentActivity() {
     private var active: Boolean = false
     //Create a timer that increments the state every second using the timer class and scheduleAtFixedRate method
     private lateinit var timer: TimerTask
+    private val uptime: MutableState<Long> = mutableStateOf<Long>(0)
+    private val connection = object : ServiceConnection {
+
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance.
+            val time = IAwakeInterface.Stub.asInterface(service).getUptime()
+            uptime.value = 1234
+            Log.d("MainActivity", "Service connected: $time")
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            Log.d("MainActivity", "Service disconnected")
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         setContent {
             UpStatsTheme {
@@ -46,7 +67,15 @@ class MainActivity : ComponentActivity() {
             else inactiveTime.value += 1
         }
     }
+    override fun onStart() {
+        super.onStart()
+        val intent = Intent()
+        intent.component = ComponentName("com.example.upstats", "com.example.upstats.AwakenService")
+        //val intent = Intent(this, AwakenService::class.java)
 
+        val status = bindService(intent, connection, BIND_AUTO_CREATE)
+        Log.d("MainActivity", "Service bound $status")
+    }
     override fun onPause() {
         super.onPause()
         active = false
